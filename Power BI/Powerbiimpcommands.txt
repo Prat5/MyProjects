@@ -1,0 +1,259 @@
+>> Cost custom column expression
+===========================================
+if [TotalProductCost] = null then [OrderQuantity] * [StandardCost] else [TotalProductCost]
+
+
+
+
+>> Date table Defination
+===========================================
+Date = 
+CALENDARAUTO("ENTER THE FISCAL YEAR END MONTH")
+
+
+
+
+>> Date table: Year columns Defination
+===========================================
+Year = 
+"FY" & YEAR('Date'[Date]) + IF(MONTH('Date'[Date]) > 3,1)
+
+3 is {{{'''End of Fiscal Month'''}}}
+1 is the number to add
+
+
+
+
+>> Date table: Quarter column Defination
+===========================================
+Quarter =
+'Date'[Year] & " Q"
+    & IF(
+        MONTH('Date'[Date]) <= 3,
+        3,
+        IF(
+            MONTH('Date'[Date]) <= 6,
+            4,
+            IF(
+                MONTH('Date'[Date]) <= 9,
+                1,
+                2
+            )
+        )
+    )
+
+'Date'[Year] would fetch Year
+& " Q" would a space and alphabet Q, which would then be followed by the quarter no. the entire expression
+would look like 2020 Q3
+
+
+
+
+
+>> Date table: Month column Defination
+===========================================
+Month =
+FORMAT('Date'[Date], "yyyy MMM")
+
+
+
+
+>> Date table: MonthKey column Defination
+===========================================
+MonthKey = 
+(Year('Date'[Date]) *100) + MONTH('Date'[Date])
+
+
+
+
+>> Sales table: Avg Price measure Defination
+===========================================
+Avg Price = 
+AVERAGE(Sales[Unit Price])
+
+
+
+
+>> Sales Table: Additional measures Definations (Use one at a time)
+===========================================
+Median Price = 
+MEDIAN(Sales[Unit Price])
+
+Min Price = 
+MIN(Sales[Unit Price])
+
+Orders = 
+DISTINCTCOUNT(Sales[SalesOrderNumber])
+
+Order Lines = 
+COUNTROWS(Sales)
+
+
+
+
+>> Sales Target per Sales Person
+===========================================
+Target = 
+IF(
+        HASOONEVALUE('Salesperson (Performance)'[Salesperson]),
+        SUM(Targets[TargetAmount])
+)
+
+
+
+
+>> Target Table : Variance Measure Defination
+===========================================
+Variance = 
+IF(
+        HASONEVALUE('Salesperson (Performance)'[Salesperson]),
+        SUM(Sales[Sales]) - [Target]
+)
+
+
+
+
+>>Target Table: Variance Margin Defination
+===========================================
+Variance Margin = 
+DIVIDE([Variance], [Target])
+
+
+
+
+>> Sales All Region measure Defiantion
+===========================================
+Sales All Region = 
+CALCULATE(SUM(Sales[Sales]), REMOVEFILTERS(Region))
+
+
+
+
+>> Sales % All Region measure defination (Replace Sales All Region measure)
+===========================================
+Sales % All Region = 
+DIVIDE(
+        SUM(Sales[Sales]),
+        CALCULATE(
+            SUM(Sales[Sales]),
+            REMOVEFILTERS(Region)
+        )
+)
+
+
+
+
+>> Sales % Country measure defination (use the below code)
+===========================================
+Sales % Country = 
+DIVIDE(
+        SUM(Sales[Sales]),
+        CALCULATE(
+            SUM(Sales[Sales]),
+            REMOVEFILTERS(Region[Region])
+        )
+)
+
+
+
+
+>> Sales % Country measure Defination (2)
+===========================================
+SSales % Country = 
+IF(
+        ISINSCOPE(Region[Region]),
+        DIVIDE(
+            SUM(Sales[Sales]),
+            CALCULATE(
+                SUM(Sales[Sales]),
+                REMOVEFILTERS(Region[Region])
+            )
+    )
+)
+
+
+
+
+>> Sales % Group measure Defination (Use the code below)
+===========================================
+Sales % Group = 
+DIVIDE(
+        SUM(Sales[Sales]),
+        CALCUALTE(
+            SUM(Sales[Sales]),
+            REMOVEFILTERS(
+                Region[Region],
+                Region[Country]
+            )
+        )
+)
+
+
+
+
+Sales % Group measure Defiantion (2)
+===========================================
+Sales % Group = 
+IF(
+        ISINSCOPE(Region[Region])
+            || ISINSCOPE(Region[Country]),
+        DIVIDE(
+                SUM(Sales[Sales]),
+                REMOVEFILTERS(
+                    Region[Region],
+                    Region[Country]
+            )
+        )
+    )
+)
+
+
+
+
+>> Sales Table: Sales YTD measure Definaton
+===========================================
+Sales YTD = 
+TOTALYTD(SUM(Sales[Sales]), 'Date[Date],"6-30")
+
+6 is the month 
+30 is the day
+
+
+
+
+>> Sales Table YoY Growth (Use the Code Below)
+===========================================
+Sales YoY Growth =
+VAR SalesPriorYear = 
+        CALCULATE(
+            SUM(Sales[Sales]),
+            PARALLELPERIOD(
+                'Date'[Date],
+                -12,
+                MONTH
+            )
+        )
+RETURN
+        SalesPriorYear
+
+
+
+
+
+>> Sales table: Sales YoY Growth (2)
+===========================================
+Sales Yoy Growth = 
+VAR SalesPriorYear = 
+        CALCULATE(
+                SUM(Sales[Sales]),
+                PARALLELPERIOD(
+                    'Date'[Date],
+                    -12,
+                    MONTH
+                )
+        )
+RETURN
+        DIVIDE(
+                (SUM(Sales[Sales]) - SalesPriorYear),
+                SalesPriorYear
+        )
